@@ -8,8 +8,6 @@ library(dplyr)
 library(purrr)
 library(OmnipathR)
 
-a = readRDS(file = "opath_ligands.rds")
-
 InterCell_Annotations <- import_Omnipath_intercell() 
 ## We filter those proteins which are mainly annotated as receptor or ligand
 Ligands_Receptors <- InterCell_Annotations %>%
@@ -38,9 +36,6 @@ Ligand_Receptors_df = data.frame(GeneSymbol = Ligand_Receptors_name,
                                   Class = Ligand_Receptors_class, stringsAsFactors = FALSE) %>%
   dplyr::distinct()
 
-AllLigands_vec  = dplyr::filter(Ligand_Receptors_df, Class == "ligand")
+AllLigands = dplyr::filter(Ligand_Receptors_df, Class == "ligand")
 
-Ligands_Receptors %>% dplyr::filter(mainclass == "ligand",
-                                    entity_type == "protein")
-
-
+saveRDS(AllLigands,file = "opath_ligands.rds")
