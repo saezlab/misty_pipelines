@@ -5,7 +5,7 @@ library(dplyr)
 library(stringr)
 library(MISTy)
 
-data <- list.dirs("../Spatial/spatial_data/breastcancer/", recursive = FALSE)
+data <- list.dirs("../data/imc_small_breastcancer/", recursive = FALSE)
 plan(multiprocess, workers = 4)
 
 threshold <- 11.236
@@ -34,7 +34,7 @@ ls %>% walk(function(l) {
         add_paraview(perm.pos, l^2, cached = FALSE)
   
       run_misty(views, results.folder = paste0(
-        "results/imc_bc_perm",p,"/imc_bc_", l^2, "/",
+        "../results/imc_small_perm",p,"/imc_small_", l^2, "/",
         str_extract(d, "[ABC][a-zA-Z0-9]+"), "/"),
         cached = FALSE
       )
