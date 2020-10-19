@@ -41,6 +41,28 @@ seq(3) %>% walk(function(grade) {
 })
 
 
+# Plots per location
+
+c("Centre", "Periphery") %>% walk(function(location){
+  ids <- meta %>%
+    filter(`Core Location` == location) %>%
+    pull(`Sample ID`)
+  
+  location.results <- collect_results(paste0("results/imc_small_perm0/imc_bc_optim/", ids))
+  
+  
+  location.results %>%
+    plot_improvement_stats() %>%
+    plot_view_contributions() %>%
+    plot_interaction_heatmap("intra", .5) %>%
+    plot_interaction_heatmap("juxta", .5) %>%
+    plot_interaction_heatmap("para", .5) %>%
+    plot_interaction_communities("intra", .5) %>%
+    plot_interaction_communities("juxta", .5) %>%
+    plot_interaction_communities("para", .5)
+  
+})
+
 # Permutation analysis
 
 perm.results <- collect_results(seq(10) %>%
