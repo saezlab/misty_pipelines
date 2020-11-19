@@ -40,3 +40,7 @@ vignettes/*.pdf
 
 # Mac folder attributes file
 .DS_Store
+data/imc_large_breastcancer
+data/imc_small_breastcancer
+results
+plots
