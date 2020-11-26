@@ -40,6 +40,33 @@ seq(3) %>% walk(function(grade) {
     plot_interaction_communities("para", 1)
 })
 
+g1.folders <- paste0("../results/imc_small_perm0/imc_bc_optim/", 
+                     meta %>% filter(Grade == 1) %>% pull(`Sample ID`))
+g2.folders <- paste0("../results/imc_small_perm0/imc_bc_optim/", 
+                     meta %>% filter(Grade == 2) %>% pull(`Sample ID`))
+g3.folders <- paste0("../results/imc_small_perm0/imc_bc_optim/", 
+                     meta %>% filter(Grade == 3) %>% pull(`Sample ID`))
+
+
+grade1.results <- bc.results %>% 
+  aggregate_results_subset(g1.folders[dir.exists(g1.folders)])
+grade1.results$importances.aggregated <- grade1.results$importances.aggregated.subset
+grade2.results <- bc.results %>% 
+  aggregate_results_subset(g2.folders[dir.exists(g2.folders)])
+grade2.results$importances.aggregated <- grade2.results$importances.aggregated.subset
+grade3.results <- bc.results %>% 
+  aggregate_results_subset(g3.folders[dir.exists(g3.folders)])
+grade3.results$importances.aggregated <- grade3.results$importances.aggregated.subset
+
+
+
+grade1.results %>% plot_contrast_heatmap("intra", "para", 0.5)
+grade2.results %>% plot_contrast_heatmap("intra", "para", 0.5)
+grade3.results %>% plot_contrast_heatmap("intra", "para", 0.5)
+
+grade2.results %>% plot_contrast_results(grade1.results, cutoff.from = 1, cutoff.to = 1)
+grade3.results %>% plot_contrast_results(grade2.results, cutoff.from = 0.5, cutoff.to = 1)
+
 
 # Plots per location
 
@@ -48,7 +75,7 @@ c("Centre", "Periphery") %>% walk(function(location){
     filter(`Core Location` == location) %>%
     pull(`Sample ID`)
   
-  location.results <- collect_results(paste0("results/imc_small_perm0/imc_bc_optim/", ids))
+  location.results <- collect_results(paste0("../results/imc_small_perm0/imc_bc_optim/", ids))
   
   
   location.results %>%
@@ -62,6 +89,22 @@ c("Centre", "Periphery") %>% walk(function(location){
     plot_interaction_communities("para", .5)
   
 })
+
+
+# Combinations
+combinations <- expand_grid(grade = c(1,3), location = c("Centre", "Periphery"))
+
+combination.results <- combinations %>% pmap(function(grade, location){
+  ids <- meta %>%
+    filter(Grade == grade, `Core Location` == location) %>%
+    pull(`Sample ID`)
+  
+  collect_results(paste0("../results/imc_small_perm0/imc_bc_optim/", ids))
+})
+
+combination.results %>% walk(~plot_contrast_heatmap(.x, "intra", "para", cutoff = 0.75))
+plot_contrast_results(combination.results[[1]], combination.results[[2]], views = "para", 0.75, 0.75)
+plot_contrast_results(combination.results[[3]], combination.results[[4]], views = "para", 0.75, 0.75)
 
 # Permutation analysis
 
@@ -155,7 +198,6 @@ generate_perm_plots(global.perf, meta)
 global.intra  <- get_global_fractions(bc.results, perm.results, "intra")
 generate_perm_plots(global.intra, meta)
 
-
 global.juxta <- get_global_fractions(bc.results, perm.results, "juxta")
 generate_perm_plots(global.juxta, meta)
 
@@ -182,3 +224,28 @@ ggplot(frac.significant, aes(x = view, y = fraction)) +
   geom_point(aes(color = set), size = 2) +
   ylim(0, 1) +
   theme_classic()
+
+
+# generate contribution and performance signatures and perform PCA
+contribution.signature <- bc.results$contributions %>% filter(view != "intercept", !str_starts(view, "p\\.")) %>%
+  group_by(image, target)  %>% mutate(fraction = abs(value)/sum(abs(value))) %>% ungroup() %>%
+  unite("Feature", c(target,view)) %>% select(-value) %>% group_by(image) %>%
+  pivot_wider(names_from = "Feature", values_from = "fraction") %>%
+  mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
+
+signature <- bc.results$improvements %>% filter(str_ends(measure,"R2")) %>% 
+  unite("Feature", c(target, measure)) %>% group_by(image) %>%
+  pivot_wider(names_from = "Feature", values_from = "value") %>%
+  mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
+
+signature.pca <- prcomp(signature %>% select(-image) %>% mutate_all(replace_na, 0))
+
+meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(image))), 
+          as_tibble(signature.pca$x) %>% mutate(image = signature %>% pull(image)),
+          by = c("Sample ID" = "image")
+) %>% mutate(Grade = as.factor(Grade))
+
+ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) + 
+  geom_point(aes(color = Grade, shape = `Core Location`), size = 3) + theme_classic()
+
+                                   

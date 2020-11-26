@@ -104,7 +104,7 @@ para.pr <- seq(10) %>% map(function(i){
 })
 
 viodata.roc <- data.frame(intra.roc = intra.roc %>% unlist, para.roc = para.roc %>% unlist) %>% 
-  pivot_longer(names_to = "Type", values_to = "AUC")
+  pivot_longer(names_to = "Type", values_to = "AUC", cols = everything())
 
 ggplot(viodata.roc, aes(x=Type, y=AUC)) + geom_violin(aes(fill=Type)) + 
   geom_jitter() + 
@@ -116,7 +116,7 @@ para.intercept <- sum(true.connections %>% filter(view == "para", !is.na(present
   (true.connections %>% filter(view == "para", !is.na(present)) %>% nrow())
 
 viodata.pr <- data.frame(intra.pr = intra.pr %>% unlist, para.pr = para.pr %>% unlist) %>%
-  pivot_longer(names_to = "Type", values_to = "AUC")
+  pivot_longer(names_to = "Type", values_to = "AUC", cols = everything())
 
 ggplot(viodata.pr, aes(x=Type, y=AUC)) + geom_violin(aes(fill=Type)) + 
   geom_jitter() + 
