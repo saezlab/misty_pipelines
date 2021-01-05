@@ -238,7 +238,7 @@ signature <- bc.results$improvements %>% filter(str_ends(measure,"R2")) %>%
   pivot_wider(names_from = "Feature", values_from = "value") %>%
   mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
 
-signature.pca <- prcomp(signature %>% select(-image) %>% mutate_all(replace_na, 0))
+signature.pca <- prcomp(signature %>% select(-image) %>% mutate_all(replace_na, 0), scale. = TRUE)
 
 meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(image))), 
           as_tibble(signature.pca$x) %>% mutate(image = signature %>% pull(image)),
@@ -247,5 +247,3 @@ meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(image
 
 ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) + 
   geom_point(aes(color = Grade, shape = `Core Location`), size = 3) + theme_classic()
-
-                                   
