@@ -117,7 +117,7 @@ plot_contrast_results(combination.results[[3]], combination.results[[4]], views 
 # Permutation analysis
 
 perm.results <- collect_results(seq(10) %>%
-  map(~ (list.dirs(paste0("../results/imc_small_perm", .x, "/imc_bc_optim"))[-1])) %>%
+  map(~ (list.dirs(paste0("results/imc_small_perm", .x, "/imc_bc_optim"))[-1])) %>%
   unlist())
 
 generate_perm_plots <- function(global, meta) {
@@ -241,7 +241,8 @@ ggplot(frac.significant, aes(x = view, y = fraction)) +
 #   pivot_wider(names_from = "Feature", values_from = "fraction") %>%
 #   mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
 
-signature <- bc.results$improvements %>% filter(str_ends(measure,"R2")) %>% 
+# exclude p values as the scales are different from variance explained
+signature <- bc.results$improvements %>% filter(str_ends(measure,"R2"), !str_ends(measure,"p.R2")) %>% 
   unite("Feature", c(target, measure)) %>% group_by(image) %>%
   pivot_wider(names_from = "Feature", values_from = "value") %>%
   mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
@@ -258,7 +259,7 @@ ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) +
   geom_point(aes(color = Grade), size = 3) + scale_color_brewer(palette = "Set2") + theme_classic()
 
 pdf(file = "plots/imc_small/small_pca_r2_var.pdf", width = 6, height = 5)
-fviz_pca_var(signature.pca, col.var = "contrib", select.var = list(co = 10), repel = TRUE, 
+fviz_pca_var(signature.pca, col.var = "cos2", select.var = list(cos2 = 10), repel = TRUE, 
              gradient.cols = c("#666666","#377EB8", "#E41A1C")) + theme_classic()
 dev.off()
 

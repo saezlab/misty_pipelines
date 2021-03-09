@@ -23,11 +23,11 @@ paths %>% walk(function(path){
   
   # translate channel to marker
   markers <- tibble(channel = colnames(expr) %>% str_extract("[0-9]+") %>% as.numeric) %>% 
-    left_join(panel %>% slice(-c(41, 46, 47)), by = c("channel" = "FullStack"))
+    left_join(panel, by = c("channel" = "FullStack"))
   
   # cleanup both markers and expr
   to.remove <- which(markers$channel < 9 | is.na(markers$Target) | 
-                       markers$channel > 47 | markers$channel %in% c(12, 25, 28, 38))
+                       markers$channel > 47)
   expr <- expr %>% select(-all_of(to.remove))
   colnames(expr) <- markers %>% slice(-to.remove) %>% pull(Target) %>% make.names
   
