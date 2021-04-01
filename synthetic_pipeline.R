@@ -7,6 +7,8 @@ library(MISTy)
 library(scales)
 library(cowplot)
 library(PRROC)
+library(ggplot2)
+library(tidyr)
 
 
 # Run MISTy
@@ -22,7 +24,7 @@ data %>% walk(function(d) {
   expr <- all %>% select(-row, -col)
   pos <- all %>% select(row, col)
 
-  views <- create_initial_view(expr) %>% add_paraview(pos, l^2)
+  views <- create_initial_view(expr) %>% add_paraview(pos, l)
 
   run_misty(views, results.folder = paste0(
     "results/synthetic/",
@@ -52,12 +54,12 @@ true.connections <- read_csv("data/synthetic/true_connections.csv")
 
 # Plot true connections
 ggtrue.intra <- ggplot(true.connections %>% filter(view == "intra")) + 
-  geom_tile(aes(x = node1, y = node2, fill = as_factor(present))) +
+  geom_tile(aes(x = node1, y = node2, fill = as.factor(present))) +
   scale_fill_discrete(type = c("white", muted("blue"))) +
   theme(axis.text.x = element_text(angle = 90)) + ggtitle("true.intra")
 
 ggtrue.para <- ggplot(true.connections %>% filter(view == "para")) + 
-  geom_tile(aes(x = node1, y = node2, fill = as_factor(present))) +
+  geom_tile(aes(x = node1, y = node2, fill = as.factor(present))) +
   scale_fill_discrete(type = c("white", muted("blue"))) +
   theme(axis.text.x = element_text(angle = 90)) + ggtitle("true.para")
 
@@ -179,3 +181,4 @@ ks %>% walk(function(k){
   p[p<=0 | p > 1.5] <- NA
   lines(r, p,ylim=c(0,1),xlim=c(0,1), col="gray80")
 })
+

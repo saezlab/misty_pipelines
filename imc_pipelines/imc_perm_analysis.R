@@ -6,7 +6,7 @@ library(factoextra)
 bc.results <- collect_results(list.dirs("results/imc_small_perm0/imc_bc_optim")[-1])
 meta <- read_delim("data/imc_small_breastcancer/metadata.tsv", delim = "\t")
 
-# Plot results all images
+# Plot results all samples
 
 # Figure 3
 bc.results %>%
@@ -134,7 +134,7 @@ generate_perm_plots <- function(global, meta) {
 
   # grades
 
-  grade1 <- global %>% filter(image %in% (meta %>% filter(Grade == 1) %>% pull(`Sample ID`)))
+  grade1 <- global %>% filter(sample %in% (meta %>% filter(Grade == 1) %>% pull(`Sample ID`)))
   grade1.plot <- ggplot(grade1, aes(x = set, y = value)) +
     geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
     scale_fill_brewer(palette = "Set2") +
@@ -142,7 +142,7 @@ generate_perm_plots <- function(global, meta) {
     ggtitle("Grade 1") +
     theme_classic()
 
-  grade2 <- global %>% filter(image %in% (meta %>% filter(Grade == 2) %>% pull(`Sample ID`)))
+  grade2 <- global %>% filter(sample %in% (meta %>% filter(Grade == 2) %>% pull(`Sample ID`)))
   grade2.plot <- ggplot(grade2, aes(x = set, y = value)) +
     geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
     scale_fill_brewer(palette = "Set2") +
@@ -150,7 +150,7 @@ generate_perm_plots <- function(global, meta) {
     ggtitle("Grade 2") +
     theme_classic()
 
-  grade3 <- global %>% filter(image %in% (meta %>% filter(Grade == 3) %>% pull(`Sample ID`)))
+  grade3 <- global %>% filter(sample %in% (meta %>% filter(Grade == 3) %>% pull(`Sample ID`)))
   grade3.plot <- ggplot(grade3, aes(x = set, y = value)) +
     geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
     scale_fill_brewer(palette = "Set2") +
@@ -177,15 +177,15 @@ get_global_fractions <- function(bc.results, perm.results, from.view){
   bind_rows(
     tibble(set = "original", bc.results$contributions %>% 
              filter(!str_starts(view, "p\\."), !str_detect(view, "intercept")) %>%
-             group_by(image, target) %>% mutate(value = abs(value) / sum(abs(value))) %>% 
+             group_by(sample, target) %>% mutate(value = abs(value) / sum(abs(value))) %>% 
              ungroup() %>%
-             filter(view == from.view) %>% select(image, value)),
+             filter(view == from.view) %>% select(sample, value)),
     tibble(set = "permutation", perm.results$contributions %>% 
              filter(!str_starts(view, "p\\."), !str_detect(view, "intercept")) %>%
-             group_by(image, target) %>% mutate(value = abs(value) / sum(abs(value))) %>% 
+             group_by(sample, target) %>% mutate(value = abs(value) / sum(abs(value))) %>% 
              ungroup() %>%
-             filter(view == from.view) %>% select(image, value))
-  ) %>% mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+"))
+             filter(view == from.view) %>% select(sample, value))
+  ) %>% mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+"))
 }
 
 
@@ -193,10 +193,10 @@ get_global_fractions <- function(bc.results, perm.results, from.view){
 
 global.perf <- bind_rows(
   tibble(set = "original", bc.results$improvements %>% filter(measure == "gain.R2") %>%
-    select(image, value)),
+    select(sample, value)),
   tibble(set = "permutation", perm.results$improvements %>% filter(measure == "gain.R2") %>%
-    select(image, value))
-) %>% mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+"))
+    select(sample, value))
+) %>% mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+"))
 generate_perm_plots(global.perf, meta)
 
 
@@ -234,25 +234,18 @@ ggplot(frac.significant, aes(x = view, y = fraction)) +
   theme_classic()
 
 
-# generate contribution and performance signatures and perform PCA
-# contribution.signature <- bc.results$contributions %>% filter(view != "intercept", !str_starts(view, "p\\.")) %>%
-#   group_by(image, target)  %>% mutate(fraction = abs(value)/sum(abs(value))) %>% ungroup() %>%
-#   unite("Feature", c(target,view)) %>% select(-value) %>% group_by(image) %>%
-#   pivot_wider(names_from = "Feature", values_from = "fraction") %>%
-#   mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
-
 # exclude p values as the scales are different from variance explained
 signature <- bc.results$improvements %>% filter(str_ends(measure,"R2"), !str_ends(measure,"p.R2")) %>% 
-  unite("Feature", c(target, measure)) %>% group_by(image) %>%
+  unite("Feature", c(target, measure)) %>% group_by(sample) %>%
   pivot_wider(names_from = "Feature", values_from = "value") %>%
-  mutate(image = str_extract(image, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
+  mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
 
 # without scaling the result is almost identical to SVCA, in large cohort we scale
-signature.pca <- prcomp(signature %>% select(-image) %>% mutate_all(replace_na, 0))
+signature.pca <- prcomp(signature %>% select(-sample) %>% mutate_all(replace_na, 0))
 
-meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(image))), 
-          as_tibble(signature.pca$x) %>% mutate(image = signature %>% pull(image)),
-          by = c("Sample ID" = "image")
+meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(sample))), 
+          as_tibble(signature.pca$x) %>% mutate(sample = signature %>% pull(sample)),
+          by = c("Sample ID" = "sample")
 ) %>% mutate(Grade = as.factor(Grade))
 
 ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) + 
@@ -280,11 +273,11 @@ sig_para <- imp.signature(bc.results, "para") # > threshold
 impsig.pca.raw <- prcomp(bind_cols(sig_intra %>% rename_all(~paste0("intra_",.)), 
                                   sig_juxta %>% rename_all(~paste0("juxta_",.)), 
                                   sig_para %>% rename_all(~paste0("para_",.))))
-impsig.pca <- data.frame(image = bc.results$improvements %>% pull(image) %>% unique %>% 
+impsig.pca <- data.frame(sample = bc.results$improvements %>% pull(sample) %>% unique %>% 
                       str_extract("[ABC][a-zA-Z0-9]+"), impsig.pca.raw$x)
 
-impmeta.pca <- left_join(meta %>% filter(`Sample ID` %in% (impsig.pca %>% pull(image))), 
-                      impsig.pca, by = c("Sample ID" = "image")
+impmeta.pca <- left_join(meta %>% filter(`Sample ID` %in% (impsig.pca %>% pull(sample))), 
+                      impsig.pca, by = c("Sample ID" = "sample")
 ) %>% mutate(Grade = as.factor(Grade))
 
 ggplot(impmeta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) + 
