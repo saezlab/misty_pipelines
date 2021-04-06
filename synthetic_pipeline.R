@@ -9,6 +9,7 @@ library(cowplot)
 library(PRROC)
 library(ggplot2)
 library(tidyr)
+
 # Run MISTy
 data <- list.dirs("data/synthetic", recursive = FALSE)
 plan(multiprocess, workers = 4)
@@ -22,7 +23,7 @@ data %>% walk(function(d) {
   expr <- all %>% select(-row, -col)
   pos <- all %>% select(row, col)
 
-  views <- create_initial_view(expr) %>% add_paraview(pos, l^2)
+  views <- create_initial_view(expr) %>% add_paraview(pos, l)
 
   run_misty(views, results.folder = paste0(
     "results/synthetic/",
@@ -220,3 +221,4 @@ text(.4,.8,labels = paste("AUC(para)=", round(pr_para$auc.integral,digits = 3)),
 text(.4,.7,labels = paste("AUC(intra)=", round(pr_intra$auc.integral,digits = 3)),adj = 0,col=intra.col)
 
 dev.off()
+

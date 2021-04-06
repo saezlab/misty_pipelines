@@ -31,10 +31,10 @@ ls %>% walk(function(l) {
         
       views <- create_initial_view(expr) %>%
         add_juxtaview(perm.pos, threshold, cached = FALSE) %>%
-        add_paraview(perm.pos, l^2, cached = FALSE)
+        add_paraview(perm.pos, l, cached = FALSE)
   
       run_misty(views, results.folder = paste0(
-        "../results/imc_small_perm",p,"/imc_small_", l^2, "/",
+        "../results/imc_small_perm",p,"/imc_small_", l, "/",
         str_extract(d, "[ABC][a-zA-Z0-9]+"), "/"),
         cached = FALSE
       )
