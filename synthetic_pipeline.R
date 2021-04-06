@@ -39,16 +39,16 @@ misty.results <- collect_results(results)
 
 # Plot contributions and improvement
 misty.results %>% plot_view_contributions() 
-ggsave("./results/synthetic/view_contribution.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/view_contribution.pdf", width = 4,height = 3.2)
 
 # difference between multi-intra 
 misty.results %>% plot_improvement_stats()
-ggsave("./results/synthetic/r2_improvement.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/r2_improvement.pdf", width = 4,height = 3.2)
 
 
 # variance explained by intra-view only. 
 misty.results %>% plot_improvement_stats(measure = "intra.R2")
-ggsave("./results/synthetic/r2_by_intra.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/r2_by_intra.pdf", width = 4,height = 3.2)
 
 
 
@@ -61,13 +61,13 @@ misty.results$improvements.stats
 
 # Plot aggregated importances
 misty.results %>% plot_interaction_heatmap("intra", 0.5)
-ggsave("./results/synthetic/interaction_heatmap_intra.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/interaction_heatmap_intra.pdf", width = 4,height = 3.2)
 
 misty.results %>% plot_interaction_heatmap("para.100", 0.5) 
-ggsave("./results/synthetic/interaction_heatmap_para.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/interaction_heatmap_para.pdf", width = 4,height = 3.2)
 
 misty.results %>% plot_contrast_heatmap("intra", "para.100")
-ggsave("./results/synthetic/contrast.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/contrast.pdf", width = 4,height = 3.2)
 
 misty.results %>% plot_interaction_communities(view = "intra", cutoff = 0.5)
 #needs manual save
@@ -151,7 +151,7 @@ ggplot(viodata.pr, aes(x=Type, y=AUC)) + geom_violin(aes(fill=Type)) +
   geom_hline(yintercept=para.intercept, color="#00BFC4", linetype="dashed") +
   theme_classic() + ylim(0,1)
 
-ggsave("./results/synthetic/AUC_intra_para.pdf", width = 4,height = 3.2)
+ggsave("plots/synthetic/AUC_intra_para.pdf", width = 4,height = 3.2)
 
 
 # Plot aggregated ROC and PR curves
@@ -162,7 +162,7 @@ ks <- c(0.1,0.2,0.5,0.8)
 para.col = "#EC008C"
 intra.col = "#00A651"
 
-pdf(file = "./results/synthetic/ROC_para_intra.pdf",width = 4,height = 4)
+pdf(file = "plots/synthetic/ROC_para_intra.pdf",width = 4,height = 4)
 tidy.intra.agg <- misty.results$importances.aggregated[["intra"]] %>% 
   pivot_longer(names_to = "Target", values_to = "Prediction", -Predictor)
 joined.intra.agg <- true.connections %>% filter(view == "intra") %>% 
@@ -200,7 +200,7 @@ dev.off()
 para.col = "#EC008C"
 intra.col = "#00A651"
 
-pdf(file = "./results/synthetic/PR_para_intra.pdf",width = 4,height = 4)
+pdf(file = "plots/synthetic/PR_para_intra.pdf",width = 4,height = 4)
 pr_intra <- pr.curve(joined.intra.agg %>% pull(Prediction), weights.class0 = joined.intra.agg %>% pull(present), 
                      curve = TRUE, rand.compute = TRUE)
 plot(pr_intra, color=intra.col, rand.plot = TRUE,auc.main=FALSE)
