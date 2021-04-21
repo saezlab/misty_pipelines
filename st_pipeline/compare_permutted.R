@@ -9,6 +9,7 @@
 library(OmnipathR)
 library(tidyverse)
 library(Seurat)
+library(mistyR)
 
 source("visiumtools/reading2clustering.R")
 source("visiumtools/funcomics.R")
@@ -19,7 +20,7 @@ source("visiumtools/misty_utils.R")
 
 # Optimized aggregated performance -------------------------------------------
 
-original_run = MISTy::collect_results(c("./revisions_misty/results/A1model_optim",
+original_run = collect_results(c("./revisions_misty/results/A1model_optim",
                                         "./revisions_misty/results/A2model_optim"))
 
 

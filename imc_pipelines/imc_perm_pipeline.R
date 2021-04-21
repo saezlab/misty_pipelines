@@ -3,7 +3,7 @@ library(purrr)
 library(readr)
 library(dplyr)
 library(stringr)
-library(MISTy)
+library(mistyR)
 
 data <- list.dirs("../data/imc_small_breastcancer/", recursive = FALSE)
 plan(multiprocess, workers = 4)

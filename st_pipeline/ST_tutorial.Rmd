@@ -14,7 +14,7 @@ library(OmnipathR)
 library(tidyverse)
 library(Seurat)
 library(cowplot)
-library(MISTy)
+library(mistyR)
 library(future)
 ```
 
@@ -94,8 +94,8 @@ para_pipeline = function(intra_df,
   colnames(para_df) = gsub("-","_", colnames(para_df))
   
   views_para = create_initial_view(para_df, 
-                                   unique.id = paste0("para_",l^2)) %>% 
-    add_paraview(geometry, l^2)
+                                   unique.id = paste0("para_",l)) %>% 
+    add_paraview(geometry, l)
   
   # Fetching actual para info to be used
   
@@ -106,10 +106,10 @@ para_pipeline = function(intra_df,
   
   # Define frankenstein of views
   views = views_main %>% 
-    add_views(create_view(paste0("para_",l^2),
+    add_views(create_view(paste0("para_",l),
                           data_red))
   
-  MISTy_run = run_misty(views,paste0(out_alias,"_",l^2))
+  MISTy_run = run_misty(views,paste0(out_alias,"_",l))
   
 }
 

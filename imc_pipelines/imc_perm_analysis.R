@@ -1,5 +1,5 @@
 library(tidyverse)
-library(MISTy)
+library(mistyR)
 library(cowplot)
 library(factoextra)
 

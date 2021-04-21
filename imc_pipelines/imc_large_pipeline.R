@@ -1,5 +1,5 @@
 library(tidyverse)
-library(MISTy)
+library(mistyR)
 library(future)
 
 plan(multiprocess, workers = 4)
@@ -27,7 +27,7 @@ paths %>% walk(function(path){
   
   # cleanup both markers and expr
   to.remove <- which(markers$channel < 9 | is.na(markers$Target) | 
-                       markers$channel > 47)
+                       markers$channel > 47 | markers$channel %in% c(26,32,36,42))
   expr <- expr %>% select(-all_of(to.remove))
   colnames(expr) <- markers %>% slice(-to.remove) %>% pull(Target) %>% make.names
   

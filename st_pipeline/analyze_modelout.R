@@ -8,6 +8,7 @@ library(tidyverse)
 library(Seurat)
 library(progeny)
 library(cowplot)
+library(mistyR)
 
 source("visiumtools/reading2clustering.R")
 source("visiumtools/funcomics.R")
@@ -32,7 +33,7 @@ lig_rec_red <- lig_rec %>% dplyr::ungroup() %>%
 
 
 # Optimized aggregated performance --------------------------------------------
-original_run <- MISTy::collect_results(c("./revisions_misty/results/A1model_optim",
+original_run <- collect_results(c("./revisions_misty/results/A1model_optim",
                                         "./revisions_misty/results/A2model_optim"))
 
 # Improvement plot --------------------------------------------
@@ -136,7 +137,7 @@ paths_importance <- plot_misty_importance(MISTy_out = original_run_paths,
                                            height_pdf = 4, 
                                            width_pdf = 3.5)
 
-MISTy::plot_contrast_heatmap(misty.results = original_run,
+plot_contrast_heatmap(misty.results = original_run,
                                             from.view = "intra",
                                             to.view = "para_path",
                                             cutoff = 0.5)

@@ -17,9 +17,8 @@ library(purrr)
 library(viper)
 library(progeny)
 library(OmnipathR)
-library(MISTy)
+library(mistyR)
 library(future)
-#source("MISTy-master/multiview.R")
 
 ## Function to group Dorothea regulons. 
 ## Input: A data frame containing Dorothea regulons, as stored in 
@@ -111,18 +110,18 @@ run_ligand_MISTy = function(seurat_visium_obj,
   
   # Creating views
   
-  views_pth = create_initial_view(pth, unique.id = paste0(out_dir_name,"path","_",l^2)) %>% 
-    add_paraview(geometry[ ,2:3], l^2)
+  views_pth = create_initial_view(pth, unique.id = paste0(out_dir_name,"path","_",l)) %>% 
+    add_paraview(geometry[ ,2:3], l)
   
-  views_ligs = create_initial_view(ligs, unique.id = paste0(out_dir_name,"ligs","_",l^2)) %>% 
-    add_paraview(geometry[ ,2:3], l^2)
+  views_ligs = create_initial_view(ligs, unique.id = paste0(out_dir_name,"ligs","_",l)) %>% 
+    add_paraview(geometry[ ,2:3], l)
   
   # Here we define the paraview of ligands
   views = views_pth %>% 
-    add_views(create_view(paste0(out_dir_name,"ligs_para_",l^2),
+    add_views(create_view(paste0(out_dir_name,"ligs_para_",l),
                           views_ligs[[3]]$data))
   
-  MISTy_run = run_misty(views,paste0(out_dir_name,"_",l^2))
+  MISTy_run = run_misty(views,paste0(out_dir_name,"_",l))
 }
 
 ## Function to get optimal results
@@ -139,7 +138,7 @@ get_optimal = function(out_dir_name,
   
   l = ls
   
-  perf = (l^2) %>% map_dfr(function(p){
+  perf = (l) %>% map_dfr(function(p){
     performance <- read_delim(paste0(out_dir_name, "_",p, "/performance.txt"),
                               delim = " ", col_types = cols()
     ) %>% distinct()
@@ -154,7 +153,7 @@ get_optimal = function(out_dir_name,
   # For each target get the maximum of improvement
   # distinct ls
   optimal.l = colnames(perf) %>% enframe(name = NULL, value = "target") %>% 
-    mutate(l = apply(perf, 2, which.max) %>% (l^2)[.])
+    mutate(l = apply(perf, 2, which.max) %>% (l)[.])
   
   # Copy the relevant documents to the new directory, deleting the l parameter info
   optimal.l %>% pull(target) %>% walk2(optimal.l %>% pull(l), function(.x, .y){
