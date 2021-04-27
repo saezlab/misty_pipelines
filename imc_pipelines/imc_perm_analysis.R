@@ -3,6 +3,9 @@ library(mistyR)
 library(cowplot)
 library(factoextra)
 
+future::plan(future::multisession)
+
+
 bc.results <- collect_results(list.dirs("results/imc_small_perm0/imc_bc_optim")[-1])
 meta <- read_delim("data/imc_small_breastcancer/metadata.tsv", delim = "\t")
 
@@ -45,6 +48,17 @@ seq(3) %>% walk(function(grade) {
   dev.off()
 })
 
+ggplot(bc.results$contributions.stats %>% 
+         group_by(view) %>% 
+         summarise(mfrac = mean(fraction)), 
+       aes(x = "", y = mfrac, group = view, fill = view)) + 
+  geom_col() + 
+  scale_fill_brewer(palette = "Set2") +
+  xlab("Average") +
+  ylab("Contribution") +
+  theme_classic()
+  
+
 g1.folders <- paste0("results/imc_small_perm0/imc_bc_optim/", 
                      meta %>% filter(Grade == 1) %>% pull(`Sample ID`))
 g2.folders <- paste0("results/imc_small_perm0/imc_bc_optim/", 
@@ -53,16 +67,9 @@ g3.folders <- paste0("results/imc_small_perm0/imc_bc_optim/",
                      meta %>% filter(Grade == 3) %>% pull(`Sample ID`))
 
 
-grade1.results <- bc.results %>% 
-  aggregate_results_subset(g1.folders[dir.exists(g1.folders)])
-grade1.results$importances.aggregated <- grade1.results$importances.aggregated.subset
-grade2.results <- bc.results %>% 
-  aggregate_results_subset(g2.folders[dir.exists(g2.folders)])
-grade2.results$importances.aggregated <- grade2.results$importances.aggregated.subset
-grade3.results <- bc.results %>% 
-  aggregate_results_subset(g3.folders[dir.exists(g3.folders)])
-grade3.results$importances.aggregated <- grade3.results$importances.aggregated.subset
-
+grade1.results <- collect_results(g1.folders)
+grade2.results <- collect_results(g2.folders)
+grade3.results <- collect_results(g3.folders)
 
 
 grade1.results %>% plot_contrast_heatmap("intra", "para", 0.5)
@@ -75,6 +82,20 @@ pdf(file = "plots/imc_small/small_contrast_g3g1.pdf", width = 5.5, height = 4)
 grade3.results %>% plot_contrast_results(grade1.results, cutoff.from = 0.5, cutoff.to = 0.5)
 dev.off()
 
+
+# Reduction in important interactions
+imp.inter <- cbind(g1 = grade1.results$importances.aggregated %>% 
+                     map_dbl(~ sum(.x >= 0.5, na.rm = TRUE)),
+                   g3 =grade3.results$importances.aggregated %>% 
+                     map_dbl(~ sum(.x >= 0.5, na.rm = TRUE))) %>%
+  as_tibble(rownames = "view") %>% pivot_longer(names_to = "grade", values_to = "value", -view)
+
+ggplot(imp.inter, aes(x = grade, y = value, group = view, color = view)) + 
+  geom_line() + geom_point() + 
+  scale_color_brewer(palette = "Set2") +
+  xlab("Grade") + ylab("Important interactions") +
+  ylim(50,130) +
+  theme_classic()
 
 # Plots per location
 
@@ -107,7 +128,7 @@ combination.results <- combinations %>% pmap(function(grade, location){
     filter(Grade == grade, `Core Location` == location) %>%
     pull(`Sample ID`)
   
-  collect_results(paste0("../results/imc_small_perm0/imc_bc_optim/", ids))
+  collect_results(paste0("results/imc_small_perm0/imc_bc_optim/", ids))
 })
 
 combination.results %>% walk(~plot_contrast_heatmap(.x, "intra", "para", cutoff = 0.75))
@@ -252,7 +273,7 @@ ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) +
   geom_point(aes(color = Grade), size = 3) + scale_color_brewer(palette = "Set2") + theme_classic()
 
 pdf(file = "plots/imc_small/small_pca_r2_var.pdf", width = 6, height = 5)
-fviz_pca_var(signature.pca, col.var = "cos2", select.var = list(cos2 = 10), repel = TRUE, 
+fviz_pca_var(signature.pca, col.var = "cos2", repel = TRUE,
              gradient.cols = c("#666666","#377EB8", "#E41A1C")) + theme_classic()
 dev.off()
 
@@ -283,8 +304,10 @@ impmeta.pca <- left_join(meta %>% filter(`Sample ID` %in% (impsig.pca %>% pull(s
 ggplot(impmeta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) + 
   geom_point(aes(color = Grade), size = 3) + scale_color_brewer(palette = "Set2") + theme_classic()
 
-pdf(file = "plots/imc_small/small_pca_imp_var.pdf", width = 6, height = 5)
-fviz_pca_var(impsig.pca.raw, col.var = "coord", select.var = list(cos2 = 10), 
+impsig.pca.raw$rotation
+
+pdf(file = "plots/imc_small/small_pca_imp_var.pdf", width = 9.6, height = 8)
+fviz_pca_var(impsig.pca.raw, col.var = "cos2", select.var = list(cos2 = 25),
              gradient.cols = c("#666666","#377EB8", "#E41A1C"), repel = TRUE) + theme_classic()
 dev.off()
 
