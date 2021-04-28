@@ -12,19 +12,29 @@ library(tidyr)
 
 # Run MISTy
 data <- list.dirs("data/synthetic", recursive = FALSE)
-plan(multiprocess, workers = 4)
+plan(multisession)
 
 l <- 10
+
+view_filter <- function(views, cells) {
+  message("Filtering")
+  views %>% map(function(view) {
+    if (length(view) > 1) {
+      view$data <- view$data %>% slice(cells)
+    }
+    view
+  })
+}
 
 
 data %>% walk(function(d) {
   all <- read_csv(paste0(d, "/random1_position_expression_real_cells.csv")) %>%
-    select(-type)
-  expr <- all %>% select(-row, -col)
+    select(-starts_with("lig"))
+  expr <- all %>% select(-row, -col, -type)
   pos <- all %>% select(row, col)
 
   views <- create_initial_view(expr) %>% add_paraview(pos, l)
-
+  
   run_misty(views, results.folder = paste0(
     "results/synthetic/",
     str_extract(d, "synthetic[0-9]+"), "/"
@@ -60,22 +70,23 @@ misty.results$improvements.stats
 
 
 # Plot aggregated importances
-misty.results %>% plot_interaction_heatmap("intra", 0.5)
+misty.results %>% plot_interaction_heatmap("intra", 0.8)
 ggsave("plots/synthetic/interaction_heatmap_intra.pdf", width = 4,height = 3.2)
 
-misty.results %>% plot_interaction_heatmap("para.100", 0.5) 
+misty.results %>% plot_interaction_heatmap("para.10", 0.5) 
 ggsave("plots/synthetic/interaction_heatmap_para.pdf", width = 4,height = 3.2)
 
-misty.results %>% plot_contrast_heatmap("intra", "para.100")
+misty.results %>% plot_contrast_heatmap("intra", "para.10", 0.5)
 ggsave("plots/synthetic/contrast.pdf", width = 4,height = 3.2)
 
-misty.results %>% plot_interaction_communities(view = "intra", cutoff = 0.5)
+misty.results %>% plot_interaction_communities(view = "intra")
 #needs manual save
 
-misty.results %>% plot_interaction_communities(view = "para.100", cutoff = 0.5)
+misty.results %>% plot_interaction_communities(view = "para.10", cutoff = 0.5)
 #needs manual save
 
-true.connections <- read_csv("data/synthetic/true_connections.csv")
+true.connections <- read_csv("data/synthetic/true_connections_nolig.csv")
+
 
 # Plot true connections
 ggtrue.intra <- ggplot(true.connections %>% filter(view == "intra")) + 
@@ -87,6 +98,7 @@ ggtrue.para <- ggplot(true.connections %>% filter(view == "para")) +
   geom_tile(aes(x = node1, y = node2, fill = as.factor(present))) +
   scale_fill_discrete(type = c("white", muted("blue"))) +
   theme(axis.text.x = element_text(angle = 90)) + ggtitle("true.para")
+
 
 plot_grid(ggtrue.intra, ggtrue.para)
 
@@ -113,7 +125,7 @@ intra.pr <- seq(10) %>% map(function(i){
 })
 
 para.roc <- seq(10) %>% map(function(i){
-  tidy.para <- misty.results$importances[[i]][["para.100"]] %>% 
+  tidy.para <- misty.results$importances[[i]][["para.10"]] %>% 
     pivot_longer(names_to = "Target", values_to = "Prediction", -Predictor)
   joined <- true.connections %>% filter(view == "para") %>% 
     left_join(tidy.para, by = c("node1" = "Predictor", "node2" = "Target")) %>% 
@@ -122,7 +134,7 @@ para.roc <- seq(10) %>% map(function(i){
 })
 
 para.pr <- seq(10) %>% map(function(i){
-  tidy.para <- misty.results$importances[[i]][["para.100"]] %>% 
+  tidy.para <- misty.results$importances[[i]][["para.10"]] %>% 
     pivot_longer(names_to = "Target", values_to = "Prediction", -Predictor)
   joined <- true.connections %>% filter(view == "para") %>% 
     left_join(tidy.para, by = c("node1" = "Predictor", "node2" = "Target")) %>% 
@@ -174,7 +186,7 @@ roc_intra <- roc.curve(joined.intra.agg %>% pull(Prediction), weights.class0 = j
 plot(roc_intra, color=intra.col, rand.plot = TRUE,main = "ROC curve",auc.main=FALSE)
 
 # add para
-tidy.para.agg <- misty.results$importances.aggregated[["para.100"]] %>% 
+tidy.para.agg <- misty.results$importances.aggregated[["para.10"]] %>% 
   pivot_longer(names_to = "Target", values_to = "Prediction", -Predictor)
 joined.para.agg <- true.connections %>% filter(view == "para") %>% 
   left_join(tidy.para.agg, by = c("node1" = "Predictor", "node2" = "Target")) %>% 
@@ -182,10 +194,10 @@ joined.para.agg <- true.connections %>% filter(view == "para") %>%
 
 roc_para = roc.curve(joined.para.agg %>% pull(Prediction), weights.class0 = joined.para.agg %>% pull(present), 
                curve = TRUE, rand.compute = TRUE)
-plot(roc_para, color=para.col, rand.plot = TRUE,main = "ROC curve",auc.main=FALSE,add = TRUE)
+plot(roc_para, color=para.col, rand.plot = TRUE,main = "ROC curve",auc.main=FALSE, add = TRUE)
 
-text(.4,.2,labels = paste("AUC(para)=", round(roc_para$auc,digits = 3)),adj = 0,col=para.col)
-text(.4,.1,labels = paste("AUC(intra)=", round(roc_intra$auc,digits = 3)),adj = 0,col=intra.col)
+text(.4,.1,labels = paste("AUC(para)=", round(roc_para$auc,digits = 3)),adj = 0,col=para.col)
+text(.4,.2,labels = paste("AUC(intra)=", round(roc_intra$auc,digits = 3)),adj = 0,col=intra.col)
 
 ks %>% walk(function(k){
   s <- r + k
@@ -202,14 +214,18 @@ intra.col = "#00A651"
 
 pdf(file = "plots/synthetic/PR_para_intra.pdf",width = 4,height = 4)
 pr_intra <- pr.curve(joined.intra.agg %>% pull(Prediction), weights.class0 = joined.intra.agg %>% pull(present), 
-                     curve = TRUE, rand.compute = TRUE)
-plot(pr_intra, color=intra.col, rand.plot = TRUE,auc.main=FALSE)
+                     curve = TRUE)
+
+plot(pr_intra, color=intra.col, auc.main=FALSE)
 
 
 pr_para <- pr.curve(joined.para.agg %>% pull(Prediction), weights.class0 = joined.para.agg %>% pull(present), 
-                    curve = TRUE, rand.compute = TRUE)
+                    curve = TRUE)
 
-plot(pr_para, color=para.col, rand.plot = TRUE,auc.main=FALSE,add = TRUE)
+plot(pr_para, color=para.col, rand.plot = TRUE, auc.main=FALSE, add = TRUE)
+
+lines(x = c(0,1), y = c(intra.intercept,intra.intercept), lty = 2, col = intra.col)
+lines(x = c(0,1), y = c(para.intercept, para.intercept), lty = 2, col = para.col)
 
 ks %>% walk(function(k){
   p <- k*r/(2*r - k)
