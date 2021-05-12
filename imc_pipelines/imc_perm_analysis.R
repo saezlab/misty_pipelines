@@ -261,7 +261,6 @@ signature <- bc.results$improvements %>% filter(str_ends(measure,"R2"), !str_end
   pivot_wider(names_from = "Feature", values_from = "value") %>%
   mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
 
-# without scaling the result is almost identical to SVCA, in large cohort we scale
 signature.pca <- prcomp(signature %>% select(-sample) %>% mutate_all(replace_na, 0))
 
 meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(sample))), 
@@ -311,3 +310,25 @@ fviz_pca_var(impsig.pca.raw, col.var = "cos2", select.var = list(cos2 = 25),
              gradient.cols = c("#666666","#377EB8", "#E41A1C"), repel = TRUE) + theme_classic()
 dev.off()
 
+
+#raw expression
+
+data <- list.dirs("data/imc_small_breastcancer/", recursive = FALSE)
+
+mean.expr <- data %>% map_dfr(function(d) {
+  expr <- read_delim(paste0(d, "/expressions.txt"), delim = " ", col_types = cols())
+  colnames(expr) <- make.names(colnames(expr))
+  c(image = str_extract(d,"[ABC][a-zA-Z0-9]+"), colMeans(expr))
+})
+
+mean.expr.pca <- mean.expr %>% select(-image) %>% mutate_all(as.numeric) %>% prcomp(scale. = FALSE)
+
+
+mean.expr.join <- left_join(cbind(mean.expr, mean.expr.pca$x), meta, by = c("image" = "Sample ID")) %>% 
+  mutate(Grade = as.factor(Grade)) %>% filter(!is.na(Grade))  
+
+ggplot(mean.expr.join, aes(x = PC1, y = PC2)) + 
+  geom_point(aes(color = Grade), size = 3) + scale_color_brewer(palette = "Set2") + theme_classic()
+
+fviz_pca_var(mean.expr.pca, col.var = "cos2", repel = TRUE, col.circle = NA,
+             gradient.cols = c("#666666","#377EB8", "#E41A1C")) + theme_classic()

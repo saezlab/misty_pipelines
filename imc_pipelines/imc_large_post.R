@@ -8,6 +8,7 @@ library(ggplot2)
 library(cowplot)
 library(factoextra)
 
+future::plan(future::multisession)
 
 wi <- read_csv("data/imc_large_breastcancer/Basel_Zuri_WholeImage.csv")
 bm <- read_csv("data/imc_large_breastcancer/Basel_PatientMetadata.csv")
@@ -395,6 +396,79 @@ surv.cor <- subtypes %>% map(function(ctype) {
 }) %>% `names<-`(subtypes)
 
 # TODO: plots for correlation analysis
+
+
+# Kaplan - Meier
+
+km_curve <- function(results, surv, view, predictor, target, cutoff = 1){
+  # collect p-t importance from results
+  ptimp <- results$importances %>% map_dbl(~ .[[view]] %>% 
+                                         filter(Predictor == predictor) %>% 
+                                         pull(target))
+  
+  
+  
+  group.sum <- left_join(surv,
+            tibble(object.id = str_extract(names(ptimp),"\\d+") %>% as.double(), 
+                   ptimp = ptimp), by = "object.id") %>%
+    mutate(ptimp = ptimp < cutoff) %>% 
+    group_by(ptimp, feature) %>% 
+    summarise(n = n(), .groups = "drop_last") %>% 
+    arrange(feature) %>%
+    mutate(pct = 100 - cumsum(n*100/sum(n))) %>%
+    ungroup()
+  
+  dummy <- tribble(
+    ~ptimp, ~feature, ~n, ~pct,
+    TRUE, 0, 0, 100,
+    FALSE, 0, 0, 100
+    )
+  
+  J <- group.sum %>% pull(feature) %>% unique()
+  
+  hazard <- group.sum %>% select(-pct) %>% 
+    add_row(expand.grid(ptimp = c(TRUE,FALSE), feature = c(0,J), n = 0)) %>% 
+    group_by(ptimp, feature) %>% 
+    summarize(n = sum(n), .groups = "drop_last") %>%
+    mutate(cn = cumsum(n), N = sum(n) - cn) %>%
+    group_split() %>% map(~ .x %>% select(-c(ptimp,cn)))
+    
+  distribution <- full_join(hazard[[1]], hazard[[2]], by="feature", suffix = c("i","j")) %>% 
+    mutate(O = ni + nj, N = Ni + Nj, 
+           Ei = Ni*O/N, Vi = Ei*((N-O)/N)*((N-Ni)/(N-1))#,
+           #Ej = Nj*O/N, 
+           #Vj = Ej*((N-O)/N)*((N-Nj)/(N-1))
+          ) %>%
+    drop_na()
+  
+  Zi <- sum(distribution$ni - distribution$Ei)/sqrt(sum(distribution$Vi))
+  
+  pval <- format(round(pnorm(-abs(Zi)), 3), nsmall = 3)
+  
+  ggplot(group.sum %>% add_row(dummy), aes(x = feature, y = pct, color = ptimp)) + 
+    geom_step() + geom_point(shape = 3) + 
+    labs(x = "Time (Months)", y = "Percent survival", color = "P-T interaction", 
+         title = paste(view, predictor, target, pval)) +
+    theme_classic()
+}
+
+ids.table <- clinical.features.bl %>%
+  filter(!is.na(clinical_type), grade %in% seq(3), OSmonth > 0, Patientstatus == "alive") %>%
+  select(object.id, OSmonth) %>%
+  rename(feature = OSmonth)
+
+ids <- ids.table %>% pull(object.id)
+surv.results <- collect_results(paste0("results/imc_large_optim/", ids))
+
+top3 <- read_csv("top3.csv")
+
+unique(top3$Set) %>% walk(function(set){
+  top3 %>% filter(Set == set)  %>% pmap(function(...){ 
+    current <- tibble(...)
+    km_curve(surv.results3, ids.table3, current$view , current$Predictor, current$Target)
+  }) %>% plot_grid(plotlist = .)
+  ggsave(paste0("g3_",set,".pdf"), width = 12, height = 8)
+})
 
 
 # Playground
