@@ -6,47 +6,44 @@ library(factoextra)
 future::plan(future::multisession)
 
 
-bc.results <- collect_results(list.dirs("results/imc_small_perm0/imc_bc_optim")[-1])
-meta <- read_delim("data/imc_small_breastcancer/metadata.tsv", delim = "\t")
+bc.results <- collect_results(list.dirs("results/imc_small_ridge_perm0/imc_bc_optim_zoi")[-1])
+meta <- read_delim("data/imc_small_breastcancer/metadata.tsv", delim = "\t") %>% 
+  filter(`Sample ID` %in% list.dirs("results/imc_small_ridge_perm0/imc_bc_optim_zoi",  
+                                    full.names = FALSE))
 
 # Plot results all samples
-
-# Figure 3
-bc.results %>%
-  plot_view_contributions() %>%
-  plot_interaction_heatmap("intra", 0.5) %>%
-  plot_interaction_heatmap("juxta", 0.5) %>%
-  plot_interaction_heatmap("para", 0.5) %>%
-  plot_interaction_communities("intra", 0.5) %>%
-  plot_interaction_communities("juxta", 0.5) %>%
-  plot_interaction_communities("para", 0.5)
 
 # Figure S3
 bc.results %>% plot_improvement_stats()
 
+# Figure 3
+bc.results %>%
+  plot_view_contributions(trim = 1) %>%
+  plot_interaction_heatmap("intra", 0.5) %>%
+  plot_interaction_heatmap("juxta", 0.5, trim = 1) %>%
+  plot_interaction_heatmap("para", 0.5, trim = 1) %>%
+  plot_interaction_communities("intra", 0.5) %>%
+  plot_interaction_communities("juxta", 0.5) %>%
+  plot_interaction_communities("para", 0.5)
+
 
 # Plots per grade
-seq(3) %>% walk(function(grade) {
-  ids <- meta %>%
-    filter(Grade == grade) %>%
-    pull(`Sample ID`)
-  grade.results <- collect_results(paste0("results/imc_small_perm0/imc_bc_optim/", ids))
-
+plot_grade_collection <- function(grade.results, grade){
   pdf(paste0("plots/imc_small/grade_", grade ,".pdf"), width = 6.5, height = 5)
   grade.results %>%
     plot_improvement_stats() %>%
-    plot_view_contributions() %>%
+    plot_view_contributions(trim = 1) %>%
     plot_interaction_heatmap("intra", 0.5) %>%
-    plot_interaction_heatmap("juxta", 0.5) %>%
-    plot_interaction_heatmap("para", 0.5) %>%
+    plot_interaction_heatmap("juxta", 0.5, trim = 1) %>%
+    plot_interaction_heatmap("para", 0.5, trim = 1) %>%
     plot_interaction_communities("intra", 0.5) %>%
     plot_interaction_communities("juxta", 0.5) %>%
     plot_interaction_communities("para", 0.5) %>%
-    plot_contrast_heatmap("intra", "juxta", 0.5) %>%
-    plot_contrast_heatmap("intra", "para", 0.5)
+    plot_contrast_heatmap("intra", "juxta", 0.5, trim = 1) %>%
+    plot_contrast_heatmap("intra", "para", 0.5, trim = 1)
   
   dev.off()
-})
+}
 
 ggplot(bc.results$contributions.stats %>% 
          group_by(view) %>% 
@@ -59,7 +56,7 @@ ggplot(bc.results$contributions.stats %>%
   theme_classic()
   
 
-g1.folders <- paste0("results/imc_small_perm0/imc_bc_optim/", 
+g1.folders <- paste0("results/imc_small_ridge_perm0/imc_bc_optim_zoi/", 
                      meta %>% filter(Grade == 1) %>% pull(`Sample ID`))
 g2.folders <- paste0("results/imc_small_perm0/imc_bc_optim/", 
                      meta %>% filter(Grade == 2) %>% pull(`Sample ID`))
@@ -71,74 +68,45 @@ grade1.results <- collect_results(g1.folders)
 grade2.results <- collect_results(g2.folders)
 grade3.results <- collect_results(g3.folders)
 
+plot_grade_collection(grade1.results, 1)
+plot_grade_collection(grade2.results, 2)
+plot_grade_collection(grade3.results, 3)
 
-grade1.results %>% plot_contrast_heatmap("intra", "para", 0.5)
-grade2.results %>% plot_contrast_heatmap("intra", "para", 0.5)
-grade3.results %>% plot_contrast_heatmap("intra", "para", 0.5)
+grade1.results %>% plot_contrast_heatmap("intra", "para", 0.5, trim = 1)
+grade2.results %>% plot_contrast_heatmap("intra", "para", 0.5, trim = 1)
+grade3.results %>% plot_contrast_heatmap("intra", "para", 0.5, trim = 1)
 
 grade2.results %>% plot_contrast_results(grade1.results, cutoff.from = 1, cutoff.to = 1)
 
 pdf(file = "plots/imc_small/small_contrast_g3g1.pdf", width = 5.5, height = 4)
-grade3.results %>% plot_contrast_results(grade1.results, cutoff.from = 0.5, cutoff.to = 0.5)
+grade3.results %>% plot_contrast_results(grade1.results, cutoff.from = 0.5, cutoff.to = 0.5, trim = 1)
 dev.off()
 
 
 # Reduction in important interactions
-imp.inter <- cbind(g1 = grade1.results$importances.aggregated %>% 
-                     map_dbl(~ sum(.x >= 0.5, na.rm = TRUE)),
-                   g3 =grade3.results$importances.aggregated %>% 
-                     map_dbl(~ sum(.x >= 0.5, na.rm = TRUE))) %>%
-  as_tibble(rownames = "view") %>% pivot_longer(names_to = "grade", values_to = "value", -view)
+
+imp.inter <- rbind(grade1.results$importances.aggregated %>% 
+                     filter(Importance >= 0.5) %>% 
+                     group_by(view) %>% 
+                     summarize(value = n()) %>% 
+                     mutate(grade = "grade 1"),
+                   grade3.results$importances.aggregated %>% 
+                     filter(Importance >= 0.5) %>% 
+                     group_by(view) %>% 
+                     summarize(value = n()) %>% 
+                     mutate(grade = "grade 3"))
 
 ggplot(imp.inter, aes(x = grade, y = value, group = view, color = view)) + 
   geom_line() + geom_point() + 
   scale_color_brewer(palette = "Set2") +
   xlab("Grade") + ylab("Important interactions") +
-  ylim(50,130) +
+  ylim(40,100) +
   theme_classic()
-
-# Plots per location
-
-c("Centre", "Periphery") %>% walk(function(location){
-  ids <- meta %>%
-    filter(`Core Location` == location) %>%
-    pull(`Sample ID`)
-  
-  location.results <- collect_results(paste0("../results/imc_small_perm0/imc_bc_optim/", ids))
-  
-  
-  location.results %>%
-    plot_improvement_stats() %>%
-    plot_view_contributions() %>%
-    plot_interaction_heatmap("intra", .5) %>%
-    plot_interaction_heatmap("juxta", .5) %>%
-    plot_interaction_heatmap("para", .5) %>%
-    plot_interaction_communities("intra", .5) %>%
-    plot_interaction_communities("juxta", .5) %>%
-    plot_interaction_communities("para", .5)
-  
-})
-
-
-# Combinations
-combinations <- expand_grid(grade = c(1,3), location = c("Centre", "Periphery"))
-
-combination.results <- combinations %>% pmap(function(grade, location){
-  ids <- meta %>%
-    filter(Grade == grade, `Core Location` == location) %>%
-    pull(`Sample ID`)
-  
-  collect_results(paste0("results/imc_small_perm0/imc_bc_optim/", ids))
-})
-
-combination.results %>% walk(~plot_contrast_heatmap(.x, "intra", "para", cutoff = 0.75))
-plot_contrast_results(combination.results[[1]], combination.results[[2]], views = "para", 0.75, 0.75)
-plot_contrast_results(combination.results[[3]], combination.results[[4]], views = "para", 0.75, 0.75)
 
 # Permutation analysis
 
 perm.results <- collect_results(seq(10) %>%
-  map(~ (list.dirs(paste0("results/imc_small_perm", .x, "/imc_bc_optim"))[-1])) %>%
+  map(~ (list.dirs(paste0("results/imc_small_ridge_perm", .x, "/imc_bc_optim_zoi"))[-1])) %>%
   unlist())
 
 generate_perm_plots <- function(global, meta) {
@@ -220,8 +188,6 @@ global.perf <- bind_rows(
 ) %>% mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+"))
 generate_perm_plots(global.perf, meta)
 
-
-
 # plot coefficient fractions
 
 global.intra  <- get_global_fractions(bc.results, perm.results, "intra")
@@ -255,44 +221,34 @@ ggplot(frac.significant, aes(x = view, y = fraction)) +
   theme_classic()
 
 
-# exclude p values as the scales are different from variance explained
-signature <- bc.results$improvements %>% filter(str_ends(measure,"R2"), !str_ends(measure,"p.R2")) %>% 
-  unite("Feature", c(target, measure)) %>% group_by(sample) %>%
-  pivot_wider(names_from = "Feature", values_from = "value") %>%
-  mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+")) %>% ungroup()
+
+# Singnature analysis
+
+signature <- extract_signature(bc.results, trim = 1)
 
 signature.pca <- prcomp(signature %>% select(-sample) %>% mutate_all(replace_na, 0))
 
-meta.pca <- left_join(meta %>% filter(`Sample ID` %in% (signature %>% pull(sample))), 
-          as_tibble(signature.pca$x) %>% mutate(sample = signature %>% pull(sample)),
-          by = c("Sample ID" = "sample")
-) %>% mutate(Grade = as.factor(Grade))
+meta.pca <- left_join(as_tibble(signature.pca$x) %>%
+                        mutate(sample = signature %>% pull(sample) %>% str_extract("[ABC]y[0-9]+x[0-9]+")),
+                      meta %>% filter(`Sample ID` %in% (signature %>% pull(sample) %>% str_extract("[ABC]y[0-9]+x[0-9]+"))),
+            by = c("sample" = "Sample ID"))  %>% 
+  mutate(Grade = as.factor(Grade))
 
 ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) + 
   geom_point(aes(color = Grade), size = 3) + scale_color_brewer(palette = "Set2") + theme_classic()
 
 pdf(file = "plots/imc_small/small_pca_r2_var.pdf", width = 6, height = 5)
-fviz_pca_var(signature.pca, col.var = "cos2", repel = TRUE,
+fviz_pca_var(signature.pca, col.var = "cos2", repel = TRUE, select.var = list(cos2 = 15),
              gradient.cols = c("#666666","#377EB8", "#E41A1C")) + theme_classic()
 dev.off()
 
 
 # generate importance signature
-imp.signature <- function(misty.results, view = "para") {
-  misty.results$importances %>% map_dfr(~ .x[[view]] %>%
-      pivot_longer(names_to = "Target", values_to = "Importance", -Predictor) %>%
-      unite("Feature", Predictor, Target) %>%
-      filter(!is.na(Importance)) %>%
-      pivot_wider(names_from = Feature, values_from = Importance))
-}
 
-sig_intra <- imp.signature(bc.results, "intra") # > threshold
-sig_juxta <- imp.signature(bc.results, "juxta") # > threshold
-sig_para <- imp.signature(bc.results, "para") # > threshold
+imp.signature <- extract_signature(bc.results, type = "importance", trim = 1)
 
-impsig.pca.raw <- prcomp(bind_cols(sig_intra %>% rename_all(~paste0("intra_",.)), 
-                                  sig_juxta %>% rename_all(~paste0("juxta_",.)), 
-                                  sig_para %>% rename_all(~paste0("para_",.))))
+impsig.pca.raw <- prcomp(imp.signature %>% select(-sample))
+
 impsig.pca <- data.frame(sample = bc.results$improvements %>% pull(sample) %>% unique %>% 
                       str_extract("[ABC][a-zA-Z0-9]+"), impsig.pca.raw$x)
 
@@ -306,7 +262,7 @@ ggplot(impmeta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) +
 impsig.pca.raw$rotation
 
 pdf(file = "plots/imc_small/small_pca_imp_var.pdf", width = 9.6, height = 8)
-fviz_pca_var(impsig.pca.raw, col.var = "cos2", select.var = list(cos2 = 25),
+fviz_pca_var(impsig.pca.raw, col.var = "cos2", select.var = list(cos2 = 15),
              gradient.cols = c("#666666","#377EB8", "#E41A1C"), repel = TRUE) + theme_classic()
 dev.off()
 
@@ -332,3 +288,4 @@ ggplot(mean.expr.join, aes(x = PC1, y = PC2)) +
 
 fviz_pca_var(mean.expr.pca, col.var = "cos2", repel = TRUE, col.circle = NA,
              gradient.cols = c("#666666","#377EB8", "#E41A1C")) + theme_classic()
+ 
