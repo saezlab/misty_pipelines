@@ -43,7 +43,7 @@ paths %>% walk(function(path){
   #misty
   views <- create_initial_view(expr) %>%
     add_juxtaview(pos, neighbor.thr, cached = FALSE) %>%
-    add_paraview(pos, l, cached = FALSE)
+    add_paraview(pos, l, zoi = neighbor.thr, cached = FALSE)
   
   run_misty(views, results.folder = paste0("../results/imc_large/",pid), cached = FALSE)
   
