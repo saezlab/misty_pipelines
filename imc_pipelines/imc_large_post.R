@@ -2,7 +2,6 @@ library(tidyverse)
 library(mistyR)
 library(cowplot)
 library(factoextra)
-library(gridGraphics)
 
 future::plan(future::multisession)
 
@@ -82,10 +81,12 @@ f5d <- ggplot(
 
 
 # For supplementary
-allg.results %>%
-  plot_improvement_stats() %>%
-  plot_improvement_stats("intra.R2") %>%
-  plot_view_contributions(trim = 1)
+allg.results %>% plot_improvement_stats() 
+sf4a <- last_plot()
+allg.results %>%  plot_improvement_stats("intra.R2") 
+sf4b <- last_plot()
+allg.results %>% plot_view_contributions(trim = 1)
+sf4c <- last_plot()
 
 fviz_pca_var(imp.signature.pca,
   col.var = "cos2", select.var = list(cos2 = 15), repel = TRUE,
@@ -139,6 +140,16 @@ pdf("plots/imc_large/community3.pdf")
 grade3.results %>% plot_interaction_communities(view = "juxta", cutoff = 0.5)
 dev.off()
 
+grade3.results %>% plot_improvement_stats()
+sf4d <- last_plot()
+grade3.results %>% plot_view_contributions(trim = 1)
+sf4e <- last_plot()
+
+grade3.results %>% plot_contrast_heatmap("intra", "juxta", cutoff = 0.5, trim = 1)
+sf4f <- last_plot()
+
+grade3.results %>% plot_contrast_heatmap("intra", "para", cutoff = 0.5, trim = 1)
+sf4g <- last_plot()
 
 imp.inter <- rbind(
   grade1.results$importances.aggregated %>%
@@ -181,16 +192,11 @@ ids <- bind_rows(
 
 g3.signature <- extract_signature(grade3.results, type = "importance", trim = 1)
 
-cltype.pca <- prcomp(g3.signature %>% select(-sample), scale. = TRUE)
+cltype.pca <- prcomp(g3.signature %>% select(-sample))
 
-ggplot(left_join(bind_cols(id = ids %>% pull(object.id), cltype.pca$x), ids, by = c("id" = "object.id")), aes(x = PC1, y = PC2, color = clinical_type)) +
+sf4h <- ggplot(left_join(bind_cols(id = ids %>% pull(object.id), cltype.pca$x), ids, by = c("id" = "object.id")), aes(x = PC1, y = PC2, color = clinical_type)) +
   geom_point(size = 2) +
   theme_classic()
-
-fviz_pca_var(cltype.pca,
-  col.var = "cos2", select.var = list(cos2 = 12), repel = TRUE,
-  gradient.cols = c("#666666", "#377EB8", "#E41A1C"), col.circle = NA
-) + theme_classic()
 
 
 # Correlation analysis of importance to survivability
@@ -387,5 +393,7 @@ dev.off()
 
 
 # Supplementary
- 
+pdf("plots/imc_large/SupplementaryFigure4.pdf", width = 13.2, height = 16.6)
+plot_grid(sf4a, sf4c, sf4d, sf4e, sf4f, sf4g, sf4h, ncol = 2, labels = "AUTO") 
+dev.off()
 
