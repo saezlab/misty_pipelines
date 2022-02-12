@@ -3,6 +3,7 @@ library(magrittr)
 library(mistyR)
 library(cowplot)
 library(factoextra)
+library(ggsignif)
 
 future::plan(future::multisession)
 
@@ -176,14 +177,13 @@ global.perf <- bind_rows(
 ) %>% mutate(sample = str_extract(sample, "[ABC][a-zA-Z0-9]+"))
 
 
-ymin <- min(global.perf$value)
-ymax <- max(global.perf$value)
-
 # global comparison
 f3c <- ggplot(global.perf, aes(x = set, y = value)) +
   geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
+  geom_signif(comparisons = list(c("original", "permutation")), 
+              test = "wilcox.test", 
+              test.args = list(alternative = "greater")) +
   scale_fill_brewer(palette = "Set2") +
-  ylim(ymin, ymax) +
   ggtitle("Gain R2") +
   theme_classic() +
   theme(legend.position = "none", axis.title.x = element_blank())
@@ -193,40 +193,36 @@ f3c <- ggplot(global.perf, aes(x = set, y = value)) +
 
 global.intra <- get_global_fractions(bc.results, perm.results, "intra")
 
-ymin <- min(global.intra$value)
-ymax <- max(global.intra$value)
-
 f3d1 <- ggplot(global.intra, aes(x = set, y = value)) +
   geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
+  geom_signif(comparisons = list(c("original", "permutation")), 
+              test = "wilcox.test", 
+              test.args = list(alternative = "less")) +
   scale_fill_brewer(palette = "Set2") +
-  ylim(ymin, ymax) +
-  ggtitle("Intraview contribution") +
+  ggtitle("Intraview contribution")+
   theme_classic() +
   theme(legend.position = "none", axis.title.x = element_blank())
 
-
 global.juxta <- get_global_fractions(bc.results, perm.results, "juxta")
-
-ymin <- min(global.juxta$value)
-ymax <- max(global.juxta$value)
 
 f3d2 <- ggplot(global.juxta, aes(x = set, y = value)) +
   geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
+  geom_signif(comparisons = list(c("original", "permutation")), 
+              test = "wilcox.test", 
+              test.args = list(alternative = "greater")) +
   scale_fill_brewer(palette = "Set2") +
-  ylim(ymin, ymax) +
   ggtitle("Juxtaview contribution") +
   theme_classic() +
   theme(legend.position = "none", axis.title.x = element_blank())
 
 global.para <- get_global_fractions(bc.results, perm.results, "para")
 
-ymin <- min(global.para$value)
-ymax <- max(global.para$value)
-
 f3d3 <- ggplot(global.para, aes(x = set, y = value)) +
   geom_violin(aes(fill = set), scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) +
+  geom_signif(comparisons = list(c("original", "permutation")), 
+              test = "wilcox.test", 
+              test.args = list(alternative = "greater")) +
   scale_fill_brewer(palette = "Set2") +
-  ylim(ymin, ymax) +
   ggtitle("Paraview contribution") +
   theme_classic() +
   theme(legend.position = "none", axis.title.x = element_blank())
@@ -234,7 +230,7 @@ f3d3 <- ggplot(global.para, aes(x = set, y = value)) +
 
 # Singnature analysis
 
-signature <- extract_signature(bc.results, trim = 1)
+signature <- extract_signature(bc.results, trim = 2)
 
 signature.pca <- prcomp(signature %>% select(-sample))
 
@@ -247,17 +243,25 @@ by = c("sample" = "Sample ID")
 
 f3e1 <- ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) +
   geom_point(aes(color = Grade), size = 3) +
+  coord_fixed() +
+  scale_color_brewer(palette = "Set2") +
+  theme_classic()
+
+f3e1.1 <- ggplot(meta.pca %>%filter(!is.na(Grade), HER2 != "?") %>% 
+         mutate(clinical_type = paste0(ifelse(ER=="+" | PR=="+", "HR+", "HR-"),"HER2",HER2)) , aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = clinical_type), size = 3) +
+  coord_fixed() +
   scale_color_brewer(palette = "Set2") +
   theme_classic()
 
 f3e2 <- fviz_pca_var(signature.pca,
-  col.var = "cos2", repel = TRUE, select.var = list(cos2 = 10),
+  col.var = "cos2", repel = TRUE, select.var = list(cos2 = 15),
   gradient.cols = c("#666666", "#377EB8", "#E41A1C")
 ) + theme_classic()
 
 # generate importance signature
 
-imp.signature <- extract_signature(bc.results, type = "importance", trim = 1)
+imp.signature <- extract_signature(bc.results, type = "importance", trim = 2)
 
 impsig.pca.raw <- prcomp(imp.signature %>% select(-sample))
 
@@ -271,11 +275,20 @@ impmeta.pca <- left_join(meta %>% filter(`Sample ID` %in% (impsig.pca %>% pull(s
 
 f4a1 <- ggplot(impmeta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) +
   geom_point(aes(color = Grade), size = 3) +
+  coord_fixed() +
+  scale_color_brewer(palette = "Set2") +
+  theme_classic()
+
+f4a1.1 <- ggplot(impmeta.pca %>% filter(!is.na(Grade), HER2 != "?") %>% 
+         mutate(clinical_type = paste0(ifelse(ER=="+" | PR=="+", "HR+", "HR-"),"HER2",HER2)),
+       aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = clinical_type), size = 3) +
+  coord_fixed() +
   scale_color_brewer(palette = "Set2") +
   theme_classic()
 
 f4a2 <- fviz_pca_var(impsig.pca.raw,
-  col.var = "cos2", select.var = list(cos2 = 10),
+  col.var = "cos2", select.var = list(cos2 = 15),
   gradient.cols = c("#666666", "#377EB8", "#E41A1C"), repel = TRUE
 ) + theme_classic()
 
@@ -320,7 +333,8 @@ sf3c2 <- fviz_pca_var(mean.expr.pca,
 pdf("plots/imc_small/Figure3.pdf", width = 13.2, height = 16.6)
 plot_grid(f3a,
   plot_grid(f3b, f3b.extra, rel_widths = c(4, 1), axis = "b", align = "v"),
-  f3e1, f3e2, f3c,
+  plot_grid(f3e1, f3e1.1, nrow = 1), 
+  f3e2, f3c,
   f3d1, f3d2, f3d3,
   ncol = 2, byrow = FALSE, rel_widths = c(2, 1),
   labels = c("A", "C", "B", "D", "E", "", "", "")
@@ -329,9 +343,10 @@ dev.off()
 
 # Figure 4
 pdf("plots/imc_small/Figure4.pdf", width = 13.2, height = 16.6)
-plot_grid(plot_grid(f4a1, f4a2, f4b1, f4b2,
+plot_grid(plot_grid(plot_grid(f4a1,f4a1.1, ncol = 1), 
+                    f4a2, f4b1, f4b2,
   ncol = 2, byrow = TRUE,
-  scale = c(0.8, 1, 1, 1), rel_heights = c(1.5, 1),
+  rel_heights = c(1.5, 1),
   labels = c("A", "", "B", "")
 ),
 plot_grid(f4c, f4d1, f4d2,
