@@ -358,30 +358,55 @@ km_curve <- function(results, surv, view, predictor, target, cutoff = 1) {
 
   pval <- format(round(pnorm(-abs(Zi)), 3), nsmall = 3)
 
+  print(paste0(view, " ", predictor,"-",target," p=", pval))
+  
   ggplot(group.sum %>% add_row(dummy), aes(x = feature, y = pct, color = ptimp)) +
     geom_step() +
     geom_point(shape = 3) +
     labs(
       x = "Time (Months)", y = "Percent survival", color = "P-T interaction",
-      title = paste(view, predictor, target, pval)
+      title = paste0(view, " ", predictor,"-",target," p=", pval)
     ) +
     theme_classic()
 }
 
-top3 <- all.surv.cor %>%
+top3 <- surv.cor[["TripleNeg"]] %>%
   filter(p.cor <= 0.05) %>%
   arrange(desc(abs(cor))) %>%
   group_by(view) %>% slice(1)
 
 
+ids.table <- clinical.features.bl %>%
+  filter(clinical_type == "TripleNeg", grade == 3, OSmonth > 0, Patientstatus == "alive") %>%
+  select(object.id, OSmonth) %>%
+  rename(feature = OSmonth)
+
+ids <- ids.table %>% pull(object.id)
+surv.results <- collect_results(paste0("results/imc_large_optim/", ids))
+
+
 kms <- top3 %>% pmap(function(...){
   current <- tibble(...)
-  km_curve(surv.results, ids.table, current$view, current$Predictor, current$Target)
+  km_curve(surv.results, ids.table, current$view, 
+           current$Predictor, current$Target, 
+           cutoff = 0.5)
 })
+
 
 f5e <- kms[[1]]
 f5f <- kms[[2]]
 f5g <- kms[[3]]
+
+#km curves for all tripleneg
+
+surv.cor[["TripleNeg"]] %>%
+  filter(p.cor <= 0.05) %>%
+  arrange(desc(abs(cor))) %>% pwalk(function(...){
+    current <- tibble(...)
+    km_curve(surv.results, ids.table, current$view,
+             current$Predictor, current$Target,
+             cutoff = 0.5)
+  })
 
 # Figure 5
 pdf("plots/imc_large/Figure5.pdf", width = 13.2, height = 16.6)
