@@ -4,6 +4,7 @@ library(mistyR)
 library(cowplot)
 library(factoextra)
 library(ggsignif)
+library(cluster)
 
 future::plan(future::multisession)
 
@@ -248,7 +249,8 @@ f3e1 <- ggplot(meta.pca %>% filter(!is.na(Grade)), aes(x = PC1, y = PC2)) +
   theme_classic()
 
 f3e1.1 <- ggplot(meta.pca %>%filter(!is.na(Grade), HER2 != "?") %>% 
-         mutate(clinical_type = paste0(ifelse(ER=="+" | PR=="+", "HR+", "HR-"),"HER2",HER2)) , aes(x = PC1, y = PC2)) +
+         mutate(clinical_type = paste0(ifelse(ER=="+" | PR=="+", "HR+", "HR-"),"HER2",HER2)) , 
+         aes(x = PC1, y = PC2)) +
   geom_point(aes(color = clinical_type), size = 3) +
   coord_fixed() +
   scale_color_brewer(palette = "Set2") +
@@ -258,6 +260,22 @@ f3e2 <- fviz_pca_var(signature.pca,
   col.var = "cos2", repel = TRUE, select.var = list(cos2 = 15),
   gradient.cols = c("#666666", "#377EB8", "#E41A1C")
 ) + theme_classic()
+
+
+silhouette(meta.pca %>% filter(!is.na(Grade)) %>% pull(Grade) %>% as.numeric(), 
+           dist(meta.pca %>% filter(!is.na(Grade)) %>% select(1:8)))[, 1:3] %>% 
+  as.data.frame() %>% group_by(cluster) %>% summarise(score = mean(sil_width), 
+                                                      frac_pos = sum(sil_width > 0)/n(),
+                                                      pos_score = sum((sil_width>0)*sil_width)/sum(sil_width > 0))
+
+silhouette(meta.pca %>% filter(!is.na(Grade), HER2 != "?") %>% 
+             mutate(clinical_type = paste0(ifelse(ER=="+" | PR=="+", "HR+", "HR-"),"HER2",HER2)) %>% 
+             pull(clinical_type) %>% as.factor() %>% as.numeric(),
+           dist(meta.pca %>% filter(!is.na(Grade), HER2 != "?") %>% select(1:8)))[, 1:3] %>% 
+  as.data.frame() %>% group_by(cluster) %>% summarise(score = mean(sil_width), 
+                                                      frac_pos = sum(sil_width > 0)/n(),
+                                                      pos_score = sum((sil_width>0)*sil_width)/sum(sil_width > 0))
+
 
 # generate importance signature
 
@@ -293,7 +311,20 @@ f4a2 <- fviz_pca_var(impsig.pca.raw,
 ) + theme_classic()
 
 
-# raw expression
+# 95% variance
+silhouette(impmeta.pca %>% filter(!is.na(Grade)) %>% pull(Grade) %>% as.numeric(), 
+           dist(impmeta.pca %>% filter(!is.na(Grade)) %>% select(10:48)))[, 1:3] %>% 
+  as.data.frame() %>% group_by(cluster) %>% summarise(score = mean(sil_width), 
+                                                      frac_pos = sum(sil_width > 0)/n(),
+                                                      pos_score = sum((sil_width>0)*sil_width)/sum(sil_width > 0))
+
+silhouette(impmeta.pca %>% filter(!is.na(Grade), HER2 != "?") %>% 
+             mutate(clinical_type = paste0(ifelse(ER=="+" | PR=="+", "HR+", "HR-"),"HER2",HER2)) %>% 
+             pull(clinical_type) %>% as.factor() %>% as.numeric(),
+           dist(impmeta.pca %>% filter(!is.na(Grade), HER2 != "?") %>% select(10:48)))[, 1:3] %>% 
+  as.data.frame() %>% group_by(cluster) %>% summarise(score = mean(sil_width), 
+                                                      frac_pos = sum(sil_width > 0)/n(),
+                                                      pos_score = sum((sil_width>0)*sil_width)/sum(sil_width > 0))
 
 data <- list.dirs("data/imc_small_breastcancer/", recursive = FALSE)
 
