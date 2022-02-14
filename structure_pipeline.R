@@ -74,16 +74,7 @@ tissue3.results.expr %>% plot_interaction_heatmap("juxta.15", clean = TRUE,
                                                   cutoff = 2, trim = 4)
 f2d <- last_plot() + ggtitle("Tissue 3 expression juxtaview")
 
-
-pdf("plots/structure/Figure2.pdf", width = 13.2, height = 16.6)
-plot_grid(
-  plot_grid(f2a, plot_grid(f2c1, f2c2, labels = c("C", ""), ncol = 1), labels = c("A", ""), 
-            ncol = 1, rel_heights = c(1,1.5)),
-  plot_grid(f2b, f2d, ncol = 1, rel_heights = c(1,2), labels = c("B", "D")),
-  nrow = 1, 
-  rel_widths = c(1.75,1)
-)
-dev.off()
+# Predictor topmarker importances
 
 tissue3 <- read.csv(data[3])
 
@@ -104,10 +95,12 @@ ct3.expr <- tissue3 %>% filter(cell_type == 3) %>% select(-seq_len(5)) %>% colMe
 non.ct3.expr <- tissue3 %>% filter(cell_type != 3) %>% select(-seq_len(5)) %>% colMeans
 ct3.markers <- ct3.expr - non.ct3.expr
 
-top0 <- names(sort(abs(ct0.markers), decreasing = TRUE))[1:10]
-top1 <- names(sort(abs(ct1.markers), decreasing = TRUE))[1:10]
-top2 <- names(sort(abs(ct2.markers), decreasing = TRUE))[1:10]
-top3 <- names(sort(abs(ct3.markers), decreasing = TRUE))[1:10]
+topn <- 10
+
+top0 <- names(sort(abs(ct0.markers), decreasing = TRUE))[1:topn]
+top1 <- names(sort(abs(ct1.markers), decreasing = TRUE))[1:topn]
+top2 <- names(sort(abs(ct2.markers), decreasing = TRUE))[1:topn]
+top3 <- names(sort(abs(ct3.markers), decreasing = TRUE))[1:topn]
 
 markers <- data.frame(cell_type = paste0("ct", rep(seq(4)-1, 10)) %>% sort(), marker = c(top0, top1, top2, top3))
 
@@ -117,17 +110,30 @@ cts <- c("ct0", "ct2")
 importances <- expand_grid(cts, markers %>% pull(cell_type) %>% unique()) %>% pmap_dfr(~
 data.frame(Target = ..1, Predictor = ..2, Importance = tissue3.results.expr$importances.aggregated %>%
   filter(
-    Target %in% (markers %>% filter(cell_type == ..1) %>% pull(marker)),
+    Target %in% (markers %>% filter(cell_type == ..1) %>% pull(marker) %>% 
+                   intersect(tissue3.results.expr$improvements.stats %>% 
+                               filter(measure == "gain.R2", mean >= 4) %>% 
+                               pull(target))),
     Predictor %in% (markers %>% filter(cell_type == ..2) %>% pull(marker))
   ) %>%
   pull(Importance)) %>% drop_na())
 
 
-
-ggplot(importances, aes(x = Predictor, y = Importance, fill = Predictor)) + 
+f2e <- ggplot(importances, aes(x = Predictor, y = Importance, fill = Predictor)) + 
   geom_violin(scale = "width", draw_quantiles = c(0.25, 0.5, 0.75)) + 
   geom_hline(yintercept = 0, col = "gray30", linetype = "dotted") +
-  facet_wrap(vars(Target)) + theme_classic() +
+  facet_wrap(vars(Target), ncol = 1) + theme_classic() +
   theme(legend.position = "none")
 
+
+pdf("plots/structure/Figure2.pdf", width = 13.2, height = 16.6)
+plot_grid(
+plot_grid(
+  f2a, f2b, nrow = 1, rel_widths = c(1.75,1), labels = c("A","B")
+),
+plot_grid(plot_grid(f2c1, f2c2, ncol = 1), f2d, f2e, nrow = 1, rel_widths = c(0.8,1,0.8), labels = c("C", "D", "E")),
+ncol = 1,
+rel_heights = c(1, 1.5)
+)
+dev.off()
 
