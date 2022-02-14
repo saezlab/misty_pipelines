@@ -1,5 +1,6 @@
 library(mistyR)
 library(tidyverse)
+library(magrittr)
 library(future)
 library(ggvoronoi)
 library(cowplot)
@@ -37,7 +38,7 @@ data %>% walk(\(path){
 
 tissues <- data %>% map_dfr(~ 
   read_csv(.x) %>% 
-    mutate(cell_type = as.factor(cell_type), 
+    mutate(cell_type = as.factor(cell_type + 1), 
            tissue=paste("Tissue", str_extract(.x, "\\d")))
 )
 
@@ -51,7 +52,7 @@ variances <- paste0("tissue", seq_len(3)) %>% map_dfr(\(n){
   results  <- collect_results(paste0("results/structure/ctype/", n))
   results$improvements %>% filter(measure == "gain.R2") %>%
     select(target, value) %>%
-    mutate(sample = n)
+    mutate(sample = n, target = paste0("ct",str_extract(target, "\\d") %>% as.numeric() + 1))
 })
 
 f2b <- ggplot(variances, aes(x = sample, y = value, color = target)) + 
@@ -61,10 +62,20 @@ f2b <- ggplot(variances, aes(x = sample, y = value, color = target)) +
 
 
 tissue2.results <- collect_results("results/structure/ctype/tissue2/")
+tissue2.results %<>% map(~ .x %>% mutate(across(
+  matches("([tT]arget|Predictor)"),
+  \(x) str_replace_all(x, "\\d", \(match) as.numeric(match) + 1)) 
+))
+
 tissue2.results %>% plot_interaction_heatmap("juxta.15", cutoff = 0.5, trim = 5)
 f2c1 <- last_plot() + ggtitle("Tissue 2 celltype juxtaview")
 
 tissue3.results <- collect_results("results/structure/ctype/tissue3/")
+tissue3.results %<>% map(~ .x %>% mutate(across(
+  matches("([tT]arget|Predictor)"),
+  \(x) str_replace_all(x, "\\d", \(match) as.numeric(match) + 1)) 
+))
+
 tissue3.results %>% plot_interaction_heatmap("juxta.15", cutoff = 0.5, trim = 5)
 f2c2 <- last_plot() + ggtitle("Tissue 3 celltype juxtaview")
 
@@ -116,7 +127,11 @@ data.frame(Target = ..1, Predictor = ..2, Importance = tissue3.results.expr$impo
                                pull(target))),
     Predictor %in% (markers %>% filter(cell_type == ..2) %>% pull(marker))
   ) %>%
-  pull(Importance)) %>% drop_na())
+  pull(Importance)) %>% drop_na()) %>% mutate(across(
+    matches("(Target|Predictor)"),
+    \(x) str_replace_all(x, "\\d", \(match) as.numeric(match) + 1)) 
+  )
+  
 
 
 f2e <- ggplot(importances, aes(x = Predictor, y = Importance, fill = Predictor)) + 
