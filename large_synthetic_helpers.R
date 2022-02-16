@@ -1,6 +1,10 @@
 
 
-
+# functions to determine ground truth
+# 
+# The function takes "true.interactions" from the insilico models, which are the 
+# direct interactions between nodes and then calculates second and higher order neighbours
+# for the paraview. 
 get_connections <- function(current_cell_type, true.interactions, all_markers) {
     
     # Intra
@@ -39,7 +43,7 @@ get_intra_connections <- function(current_cell_type,true.interactions){
             select(node1,node2, present,view,cell_type) %>% 
             # remove duplicates that appeared in more cell types
             unique() %>%
-            mutate(depth = 1)
+            mutate(depth = 0)
         
     }else{
         true.intra.connections <- true.interactions %>% rename(node1 = "from",node2="target") %>%
@@ -49,7 +53,7 @@ get_intra_connections <- function(current_cell_type,true.interactions){
             filter(!grepl("L.",node2)) %>%
             filter(cell_type==current_cell_type) %>%
             select(node1,node2, present,view,cell_type) %>%
-            mutate(depth = 1)
+            mutate(depth = 0)
     }
     return(true.intra.connections)
 }
