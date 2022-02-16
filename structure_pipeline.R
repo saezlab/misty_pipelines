@@ -58,6 +58,8 @@ variances <- paste0("tissue", seq_len(3)) %>% map_dfr(\(n){
 f2b <- ggplot(variances, aes(x = sample, y = value, color = target)) + 
   geom_point() + 
   ylab("Variance explained") + 
+  xlab("") +
+  coord_fixed(ratio = 0.3) +
   theme_classic()
 
 
@@ -141,14 +143,14 @@ f2e <- ggplot(importances, aes(x = Predictor, y = Importance, fill = Predictor))
   theme(legend.position = "none")
 
 
-pdf("plots/structure/Figure2.pdf", width = 13.2, height = 16.6)
+pdf("plots/structure/Figure2.pdf", width = 12, height = 14)
 plot_grid(
 plot_grid(
   f2a, f2b, nrow = 1, rel_widths = c(1.75,1), labels = c("A","B")
 ),
 plot_grid(plot_grid(f2c1, f2c2, ncol = 1), f2d, f2e, nrow = 1, rel_widths = c(0.8,1,0.8), labels = c("C", "D", "E")),
 ncol = 1,
-rel_heights = c(1, 1.5)
+rel_heights = c(1, 1.8)
 )
 dev.off()
 

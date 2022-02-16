@@ -362,7 +362,7 @@ sf3c2 <- fviz_pca_var(mean.expr.pca,
 
 # Figure 3
 pdf("plots/imc_small/Figure3.pdf", width = 13.2, height = 16.6)
-plot_grid(f3a,
+plot_grid(plot_grid(grid::nullGrob(), f3a, nrow = 1),
   plot_grid(f3b, f3b.extra, rel_widths = c(4, 1), axis = "b", align = "v"),
   plot_grid(f3e1, f3e1.1, nrow = 1), 
   f3e2, f3c,
