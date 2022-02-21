@@ -12,11 +12,11 @@ library(cowplot)
 library(PRROC)
 library(ggplot2)
 library(tidyr)
-source("./large_synthetic_helpers.R")
+source("./insilico/mechanistic_helpers.R")
 
-input_folder = "./data/TIGER_general_network_v8/"
-results_folder_base = "results/TIGER_general_network_v8/"
-plot_folder_base = "plots/TIGER_general_network_v8_revision"
+input_folder = "./data/insilico/mechanistic/"
+results_folder_base = "results/mechanistic/"
+plot_folder_base = "plots/mechanistic"
 
 # Run MISTy
 data <- list.dirs(input_folder, recursive = FALSE)
@@ -34,25 +34,21 @@ measurements <- read_csv(paste0(d, "/small_network_position_expression_real_cell
 data %>% walk(function(d) {
   print(paste("processing:",d))
   
+  # Run misty without cell type information
   all <- read_csv(paste0(d, "/small_network_position_expression_real_cells.csv")) %>%
     select(-starts_with("L")) %>%
     select(row,col,type,everything())
   
-  
   expr <- all %>% select(-row, -col,-type)
-
   pos <- all %>% select(row, col)
-  
   views <- create_initial_view(expr) %>% select_markers("intraview", where(~sd(.) > .1)) %>%  add_paraview(pos, l)
   
   run_misty(views, results.folder = paste0(results_folder_base,
                                            "all/",
-                                           str_extract(d, "IMC[0-9]+"), "/"
-  ), #bypass.intra = TRUE
-  )
+                                           str_extract(d, "tissue[0-9]+"), "/"))
   
+  # Run misty for each cell type
   types <- all %>% pull(type)
-  
   unique(types) %>% walk(function(t) {
     
     # - filtering the intraview for expressed markers (sd > 0.1)
@@ -61,26 +57,19 @@ data %>% walk(function(d) {
     filtered_ct_view <- views %>% filter_views(which(types == t)) %>%
       select_markers("intraview", where(~sd(.) > .1)) 
     
-                                      
     run_misty(filtered_ct_view,
               results.folder = paste0(
                 results_folder_base, t, "/",
-                str_extract(d, "IMC[0-9]+"), "/"
-              ), #bypass.intra = TRUE
-    )
+                str_extract(d, "tissue[0-9]+"), "/"))
   })
 })
 
-
-
-
+# folders for the results
 ct_results_folder = list(paste0(results_folder_base,"all"),
                          paste0(results_folder_base,"CT1"),
                          paste0(results_folder_base,"CT2"),
                          paste0(results_folder_base,"CT3"),
                          paste0(results_folder_base,"CT4"))
-
-
 
 
 # we look for direct interactions (Ground Truth depth = 1)
@@ -106,7 +95,7 @@ for(i_analysis in 1:length(ct_results_folder)){
   current_cell_type = c("all","CT1","CT2","CT3","CT4")[[i_analysis]]
   
   # Analysis
-  results <- list.dirs(results_folder, recursive = FALSE)[3:4]
+  results <- list.dirs(results_folder, recursive = FALSE)
   misty.results <- collect_results(results)
   
   
@@ -342,10 +331,12 @@ for(i_analysis in 1:length(ct_results_folder)){
 
 
 # -----------------------------------------------------------------------------
-# general and Celltype 1 network together
+# Compare results for the case without cell type info with the results of Celltype 1
+
+
 max_GT_depth = 1
 
-ct_plot_folder = "plots/TIGER_general_network_V8_GT_revision_GT1_allCT1/"
+ct_plot_folder = "plots/mechanistic_revision_GT1_noCT_vs_CT1/"
 
 dir.create(ct_plot_folder,recursive = TRUE)
 
@@ -506,7 +497,7 @@ ggtrue.para <- misty.results_all$importances.aggregated %>%
 
 plot_grid(ggtrue.intra, ggtrue.para)
 ggsave(paste0(plot_folder,"prediction_with_gold_standard_all_legend.pdf"),width = 8,height = 4)
-#ggsave(paste0(plot_folder,"prediction_with_gold_standard_all.pdf"),width = 8,height = 4)
+
 
 
 
