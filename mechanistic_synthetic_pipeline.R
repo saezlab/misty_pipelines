@@ -19,7 +19,7 @@ results_folder_base = "results/TIGER_general_network_v8/"
 plot_folder_base = "plots/TIGER_general_network_v8_revision"
 
 # Run MISTy
-data <- list.dirs(input_folder, recursive = FALSE)[3:4]
+data <- list.dirs(input_folder, recursive = FALSE)
 plan(multisession)
 
 l <- 10
@@ -356,10 +356,10 @@ plot_folder = ct_plot_folder
 current_cell_type = c("all","CT1")
 
 # Analysis
-results <- list.dirs(results_folder_all, recursive = FALSE)[3:4]
+results <- list.dirs(results_folder_all, recursive = FALSE)
 misty.results_all <- collect_results(results)
 
-results <- list.dirs(results_folder_CT1, recursive = FALSE)[3:4]
+results <- list.dirs(results_folder_CT1, recursive = FALSE)
 misty.results_CT1 <- collect_results(results)
 
 
